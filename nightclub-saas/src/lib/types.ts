@@ -13,6 +13,9 @@ export type PaymentMethod = "Cash" | "Card" | "QR" | "Other";
 // ========================
 export type ItemCategory = "item" | "set" | "nomination" | "bottle" | "other";
 
+// メニューカテゴリー（拡張版）
+export type MenuCategory = "set" | "bottle" | "nomination" | "item" | "other";
+
 // ========================
 // RBAC ロール
 // ========================
@@ -192,6 +195,32 @@ export interface UpdateSettingsInput {
     closeTime: string;
   };
   theme?: "dark" | "light";
+}
+
+// ========================
+// メニュー管理関連
+// ========================
+export interface MenuItem {
+  id: string;
+  name: string;
+  category: MenuCategory;
+  priceTaxInJPY: number;  // 税込価格（円）
+  active: boolean;        // 有効/無効フラグ
+}
+
+// ========================
+// バッチ操作関連
+// ========================
+export type BatchReceiptOp = {
+  op: "create" | "update" | "cancel";
+  id?: string;  // updateやcancelの場合は必須
+  payload?: CreateReceiptInput | UpdateReceiptInput;  // createやupdateの場合に使用
+};
+
+export interface BatchReceiptResult {
+  id: string;
+  status: "ok" | "error";
+  message?: string;
 }
 
 // ========================

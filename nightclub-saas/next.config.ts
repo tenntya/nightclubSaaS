@@ -12,7 +12,6 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '2mb',
     },
   },
-  swcMinify: true,
 };
 
 export default nextConfig;
