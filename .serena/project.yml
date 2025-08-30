@@ -1,0 +1,14 @@
+project_name: nightclub-saas
+language: typescript
+root_path: ./nightclub-saas
+include_patterns:
+  - "src/**/*.ts"
+  - "src/**/*.tsx"
+  - "*.config.ts"
+  - "*.config.js"
+exclude_patterns:
+  - "node_modules/**"
+  - ".next/**"
+  - "dist/**"
+  - "build/**"
+  - "coverage/**"
