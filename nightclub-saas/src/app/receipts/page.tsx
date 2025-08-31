@@ -43,7 +43,8 @@ import {
   Receipt,
   List,
   DollarSign,
-  CreditCard
+  CreditCard,
+  CheckCircle
 } from "lucide-react";
 import { toast } from "sonner";
 import type { 
@@ -56,7 +57,8 @@ import { fmtJPY, fmtDate, fmtPaymentMethod } from "@/lib/format";
 import { listMenu } from "@/server/actions/menu";
 import { 
   listReceipts, 
-  batchReceipts 
+  batchReceipts,
+  payReceipt 
 } from "@/server/actions/receipts";
 
 export default function ReceiptsPage() {
@@ -108,6 +110,21 @@ export default function ReceiptsPage() {
       newSelection.add(id);
     }
     setSelectedReceipts(newSelection);
+  };
+
+  // 会計処理
+  const handlePayment = async (id: string) => {
+    try {
+      await payReceipt(id);
+      toast.success("会計処理が完了しました");
+      await fetchReceipts();
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("会計処理に失敗しました");
+      }
+    }
   };
 
   // 全選択/全解除
@@ -317,6 +334,7 @@ export default function ReceiptsPage() {
                     <TableHead className="text-right">合計</TableHead>
                     <TableHead>決済方法</TableHead>
                     <TableHead>状態</TableHead>
+                    <TableHead className="text-center">操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -344,15 +362,36 @@ export default function ReceiptsPage() {
                       <TableCell>
                         {receipt.status === "cancelled" ? (
                           <Badge variant="destructive">キャンセル済</Badge>
+                        ) : receipt.status === "paid" ? (
+                          <Badge variant="secondary">会計済</Badge>
                         ) : (
                           <Badge variant="default">有効</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {receipt.status === "active" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePayment(receipt.id)}
+                            className="bg-green-600 hover:bg-green-700 text-white border-green-600"
+                          >
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            会計
+                          </Button>
+                        )}
+                        {receipt.status === "paid" && (
+                          <span className="text-sm text-muted-foreground">会計済</span>
+                        )}
+                        {receipt.status === "cancelled" && (
+                          <span className="text-sm text-muted-foreground">-</span>
                         )}
                       </TableCell>
                     </TableRow>
                   ))}
                   {receipts.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center text-muted-foreground">
                         伝票がありません
                       </TableCell>
                     </TableRow>

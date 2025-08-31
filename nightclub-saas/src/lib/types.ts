@@ -52,7 +52,7 @@ export interface Receipt {
   chargeEnabled: boolean; // 固定チャージ有効
   chargeFixedJPY: number; // 固定チャージ額
   totals: ReceiptTotals;
-  status?: "active" | "cancelled"; // 伝票ステータス
+  status?: "active" | "cancelled" | "paid"; // 伝票ステータス
   note?: string;          // 備考
 }
 

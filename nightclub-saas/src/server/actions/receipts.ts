@@ -143,6 +143,33 @@ export async function cancelReceipt(id: string): Promise<Receipt> {
 }
 
 /**
+ * 伝票を会計済みにする
+ */
+export async function payReceipt(id: string): Promise<Receipt> {
+  try {
+    const receipt = await mockReceiptStore.get(id);
+    if (!receipt) {
+      throw new Error("伝票が見つかりません");
+    }
+    if (receipt.status === "cancelled") {
+      throw new Error("キャンセル済みの伝票は会計できません");
+    }
+    if (receipt.status === "paid") {
+      throw new Error("既に会計済みです");
+    }
+    
+    const paidReceipt = await mockReceiptStore.update(id, { status: "paid" });
+    return paidReceipt;
+  } catch (error) {
+    console.error("Failed to pay receipt:", error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error("伝票の会計処理に失敗しました");
+  }
+}
+
+/**
  * 複数の伝票を一括作成
  */
 export async function createMultipleReceipts(
