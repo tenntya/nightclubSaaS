@@ -49,7 +49,8 @@ import {
   ChevronsUpDown,
   Copy,
   Save,
-  X
+  X,
+  CheckCircle
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -61,7 +62,7 @@ import type {
 } from "@/lib/types";
 import { calcReceiptTotals, generateReceiptId } from "@/lib/calc";
 import { fmtJPY, fmtItemCategory } from "@/lib/format";
-import { createReceipt, createMultipleReceipts } from "@/server/actions/receipts";
+import { createReceipt, createMultipleReceipts, payReceipt } from "@/server/actions/receipts";
 
 interface ReceiptDraft {
   id: string;
@@ -210,7 +211,7 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
   };
 
   // すべての伝票を一括保存
-  const saveAllReceipts = async () => {
+  const saveAllReceipts = async (andPay: boolean = false) => {
     const validReceipts = receipts.filter(r => r.items.length > 0);
     
     if (validReceipts.length === 0) {
@@ -237,6 +238,22 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
       
       if (createdReceipts.length > 0) {
         toast.success(`${createdReceipts.length}件の伝票を作成しました`);
+        
+        // 会計処理を行う場合
+        if (andPay) {
+          let paidCount = 0;
+          for (const receipt of createdReceipts) {
+            try {
+              await payReceipt(receipt.id);
+              paidCount++;
+            } catch (error) {
+              console.error(`Failed to pay receipt ${receipt.id}:`, error);
+            }
+          }
+          if (paidCount > 0) {
+            toast.success(`${paidCount}件の会計処理が完了しました`);
+          }
+        }
       }
       
       if (errors.length > 0) {
@@ -268,12 +285,20 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
             複製
           </Button>
           <Button 
-            onClick={saveAllReceipts}
+            onClick={() => saveAllReceipts(false)}
             className="bg-brand-primary hover:bg-brand-primary-light"
             disabled={receipts.every(r => r.items.length === 0)}
           >
             <Save className="mr-2 h-4 w-4" />
             すべて保存（{receipts.filter(r => r.items.length > 0).length}件）
+          </Button>
+          <Button 
+            onClick={() => saveAllReceipts(true)}
+            className="bg-green-600 hover:bg-green-700 text-white"
+            disabled={receipts.every(r => r.items.length === 0)}
+          >
+            <CheckCircle className="mr-2 h-4 w-4" />
+            保存して会計（{receipts.filter(r => r.items.length > 0).length}件）
           </Button>
         </div>
       </div>
