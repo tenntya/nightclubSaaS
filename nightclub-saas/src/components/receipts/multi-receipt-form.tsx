@@ -210,6 +210,64 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
     });
   };
 
+  // 個別の伝票を保存・会計
+  const saveSingleReceipt = async (index: number, andPay: boolean = false) => {
+    const receipt = receipts[index];
+    
+    if (receipt.items.length === 0) {
+      toast.error("商品が追加されていません");
+      return;
+    }
+
+    try {
+      const input = {
+        items: receipt.items.map(item => ({
+          name: item.name,
+          category: item.category,
+          unitPriceTaxInJPY: item.unitPriceTaxInJPY,
+          qty: item.qty,
+        })),
+        paymentMethod: receipt.paymentMethod,
+        discountJPY: receipt.discountJPY,
+        serviceChargeRatePercent: receipt.serviceChargeRatePercent,
+        chargeEnabled: receipt.chargeEnabled,
+        chargeFixedJPY: receipt.chargeFixedJPY,
+      };
+
+      const createdReceipt = await createReceipt(input);
+      
+      if (createdReceipt) {
+        toast.success(`伝票 ${index + 1} を作成しました`);
+        
+        // 会計処理を行う場合
+        if (andPay) {
+          try {
+            await payReceipt(createdReceipt.id);
+            toast.success(`伝票 ${index + 1} の会計処理が完了しました`);
+            
+            // 会計済みの伝票をリセット
+            const newReceipts = [...receipts];
+            newReceipts[index] = {
+              id: `draft-${Date.now()}`,
+              items: [],
+              paymentMethod: "Cash",
+              discountJPY: 0,
+              serviceChargeRatePercent: 10,
+              chargeEnabled: true,
+              chargeFixedJPY: 1000,
+            };
+            setReceipts(newReceipts);
+          } catch (error) {
+            console.error(`Failed to pay receipt:`, error);
+            toast.error("会計処理に失敗しました");
+          }
+        }
+      }
+    } catch (error) {
+      toast.error(`伝票 ${index + 1} の作成に失敗しました`);
+    }
+  };
+
   // すべての伝票を一括保存
   const saveAllReceipts = async (andPay: boolean = false) => {
     const validReceipts = receipts.filter(r => r.items.length > 0);
@@ -296,25 +354,6 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
           <Button onClick={duplicateReceipt} variant="outline" size="sm">
             <Copy className="mr-2 h-4 w-4" />
             複製
-          </Button>
-        </div>
-        <div className="flex gap-2">
-          <Button 
-            onClick={() => saveAllReceipts(false)}
-            variant="outline"
-            disabled={receipts.every(r => r.items.length === 0)}
-          >
-            <Save className="mr-2 h-4 w-4" />
-            保存のみ（{receipts.filter(r => r.items.length > 0).length}件）
-          </Button>
-          <Button 
-            onClick={() => saveAllReceipts(true)}
-            className="bg-green-600 hover:bg-green-700 text-white"
-            size="lg"
-            disabled={receipts.every(r => r.items.length === 0)}
-          >
-            <CheckCircle className="mr-2 h-5 w-5" />
-            会計（{receipts.filter(r => r.items.length > 0).length}件）
           </Button>
         </div>
       </div>
@@ -611,6 +650,28 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* 個別の会計ボタン */}
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={() => saveSingleReceipt(index, false)}
+                    variant="outline"
+                    className="w-full"
+                    disabled={receipt.items.length === 0}
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    この伝票を保存
+                  </Button>
+                  <Button 
+                    onClick={() => saveSingleReceipt(index, true)}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                    size="lg"
+                    disabled={receipt.items.length === 0}
+                  >
+                    <CheckCircle className="mr-2 h-5 w-5" />
+                    この伝票を会計
+                  </Button>
+                </div>
 
                 {/* 合計計算 */}
                 <Card className="border-brand-accent">
