@@ -27,6 +27,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { MultiReceiptForm } from "@/components/receipts/multi-receipt-form";
 import {
   Command,
   CommandEmpty,
@@ -371,10 +372,14 @@ export default function ReceiptsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="create">
             <Receipt className="mr-2 h-4 w-4" />
-            新規作成
+            単一作成
+          </TabsTrigger>
+          <TabsTrigger value="multi">
+            <Plus className="mr-2 h-4 w-4" />
+            複数作成
           </TabsTrigger>
           <TabsTrigger value="list">
             <List className="mr-2 h-4 w-4" />
@@ -697,6 +702,17 @@ export default function ReceiptsPage() {
               </Button>
             </div>
           </div>
+        </TabsContent>
+
+        {/* 複数作成タブ */}
+        <TabsContent value="multi" className="space-y-6">
+          <MultiReceiptForm 
+            menuItems={menuItems} 
+            onComplete={async () => {
+              await fetchReceipts();
+              setActiveTab("list");
+            }}
+          />
         </TabsContent>
 
         {/* 一覧タブ */}
