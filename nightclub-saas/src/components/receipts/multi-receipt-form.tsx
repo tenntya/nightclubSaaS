@@ -61,7 +61,7 @@ import type {
 } from "@/lib/types";
 import { calcReceiptTotals, generateReceiptId } from "@/lib/calc";
 import { fmtJPY, fmtItemCategory } from "@/lib/format";
-import { createReceipt } from "@/server/actions/receipts";
+import { createReceipt, createMultipleReceipts } from "@/server/actions/receipts";
 
 interface ReceiptDraft {
   id: string;
@@ -219,25 +219,33 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
     }
 
     try {
-      const promises = validReceipts.map(receipt => 
-        createReceipt({
-          items: receipt.items.map(item => ({
-            name: item.name,
-            category: item.category,
-            unitPriceTaxInJPY: item.unitPriceTaxInJPY,
-            qty: item.qty,
-          })),
-          paymentMethod: receipt.paymentMethod,
-          discountJPY: receipt.discountJPY,
-          serviceChargeRatePercent: receipt.serviceChargeRatePercent,
-          chargeEnabled: receipt.chargeEnabled,
-          chargeFixedJPY: receipt.chargeFixedJPY,
-        })
-      );
+      const inputs = validReceipts.map(receipt => ({
+        items: receipt.items.map(item => ({
+          name: item.name,
+          category: item.category,
+          unitPriceTaxInJPY: item.unitPriceTaxInJPY,
+          qty: item.qty,
+        })),
+        paymentMethod: receipt.paymentMethod,
+        discountJPY: receipt.discountJPY,
+        serviceChargeRatePercent: receipt.serviceChargeRatePercent,
+        chargeEnabled: receipt.chargeEnabled,
+        chargeFixedJPY: receipt.chargeFixedJPY,
+      }));
 
-      const results = await Promise.all(promises);
-      toast.success(`${results.length}件の伝票を作成しました`);
-      onComplete();
+      const { receipts: createdReceipts, errors } = await createMultipleReceipts(inputs);
+      
+      if (createdReceipts.length > 0) {
+        toast.success(`${createdReceipts.length}件の伝票を作成しました`);
+      }
+      
+      if (errors.length > 0) {
+        errors.forEach(error => toast.error(error));
+      }
+      
+      if (createdReceipts.length > 0) {
+        onComplete();
+      }
     } catch (error) {
       toast.error("伝票の作成に失敗しました");
     }

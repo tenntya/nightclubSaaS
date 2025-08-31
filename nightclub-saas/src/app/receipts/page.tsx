@@ -29,18 +29,6 @@ import {
 } from "@/components/ui/tabs";
 import { MultiReceiptForm } from "@/components/receipts/multi-receipt-form";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -49,58 +37,27 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { 
-  Plus, 
-  Trash2, 
   Download, 
-  Calculator, 
-  Check, 
-  ChevronsUpDown,
   Ban,
   Receipt,
   List,
   DollarSign,
   CreditCard
 } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import type { 
   Receipt,
-  ReceiptItem, 
   PaymentMethod, 
-  ItemCategory,
   MenuItem,
   BatchReceiptOp,
-  BatchReceiptResult 
 } from "@/lib/types";
-import { calcReceiptTotals, generateReceiptId } from "@/lib/calc";
-import { fmtJPY, fmtDate, fmtPaymentMethod, fmtItemCategory } from "@/lib/format";
+import { fmtJPY, fmtDate, fmtPaymentMethod } from "@/lib/format";
 import { listMenu } from "@/server/actions/menu";
 import { 
   listReceipts, 
-  createReceipt, 
   batchReceipts 
 } from "@/server/actions/receipts";
-
-// フォームのスキーマ
-const receiptItemSchema = z.object({
-  name: z.string().min(1, "商品名は必須です"),
-  category: z.enum(["item", "set", "nomination", "bottle", "other"]),
-  unitPriceTaxInJPY: z.number().min(0, "金額は0以上である必要があります"),
-  qty: z.number().min(1, "数量は1以上である必要があります"),
-});
-
-const receiptSchema = z.object({
-  paymentMethod: z.enum(["Cash", "Card", "QR", "Other"]),
-  discountJPY: z.number().min(0).default(0),
-  serviceChargeRatePercent: z.number().min(0).max(100).default(10),
-  chargeEnabled: z.boolean().default(true),
-  chargeFixedJPY: z.number().min(0).default(1000),
-});
 
 export default function ReceiptsPage() {
   // タブの状態
@@ -108,8 +65,6 @@ export default function ReceiptsPage() {
   
   // メニューアイテム
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [selectedMenu, setSelectedMenu] = useState("");
   
   // 伝票一覧
   const [receipts, setReceipts] = useState<Receipt[]>([]);
@@ -117,36 +72,6 @@ export default function ReceiptsPage() {
   const [batchDialogOpen, setBatchDialogOpen] = useState(false);
   const [batchType, setBatchType] = useState<"cancel" | "discount" | "payment" | "csv">("cancel");
   const [batchValue, setBatchValue] = useState<string | number>("");
-  
-  // 伝票アイテムの状態管理
-  const [items, setItems] = useState<ReceiptItem[]>([]);
-  const [newItem, setNewItem] = useState({
-    name: "",
-    category: "item" as ItemCategory,
-    unitPriceTaxInJPY: 0,
-    qty: 1,
-  });
-
-  // フォーム管理
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    formState: { errors },
-  } = useForm({
-    resolver: zodResolver(receiptSchema),
-    defaultValues: {
-      paymentMethod: "Cash" as PaymentMethod,
-      discountJPY: 0,
-      serviceChargeRatePercent: 10,
-      chargeEnabled: true,
-      chargeFixedJPY: 1000,
-    },
-  });
-
-  // フォームの値を監視
-  const formValues = watch();
 
   // 初期データ取得
   useEffect(() => {
@@ -171,79 +96,6 @@ export default function ReceiptsPage() {
       setReceipts(receiptList);
     } catch (error) {
       toast.error("伝票一覧の取得に失敗しました");
-    }
-  };
-
-  // 合計計算
-  const totals = calcReceiptTotals({
-    items,
-    discountJPY: formValues.discountJPY || 0,
-    serviceChargeRatePercent: formValues.serviceChargeRatePercent || 10,
-    chargeEnabled: formValues.chargeEnabled || false,
-    chargeFixedJPY: formValues.chargeFixedJPY || 1000,
-    taxRatePercent: 10,
-  });
-
-  // メニューから追加
-  const addFromMenu = (menuItem: MenuItem) => {
-    const item: ReceiptItem = {
-      id: `item-${Date.now()}`,
-      name: menuItem.name,
-      category: menuItem.category as ItemCategory,
-      unitPriceTaxInJPY: menuItem.priceTaxInJPY,
-      qty: 1,
-    };
-    setItems([...items, item]);
-    setSelectedMenu("");
-    setMenuOpen(false);
-    toast.success(`${menuItem.name}を追加しました`);
-  };
-
-  // アイテム追加
-  const addItem = () => {
-    if (newItem.name && newItem.unitPriceTaxInJPY > 0) {
-      const item: ReceiptItem = {
-        id: `item-${Date.now()}`,
-        ...newItem,
-      };
-      setItems([...items, item]);
-      setNewItem({
-        name: "",
-        category: "item",
-        unitPriceTaxInJPY: 0,
-        qty: 1,
-      });
-    }
-  };
-
-  // アイテム削除
-  const removeItem = (id: string) => {
-    setItems(items.filter((item) => item.id !== id));
-  };
-
-  // 伝票作成
-  const onSubmit = async (data: any) => {
-    try {
-      const receipt = await createReceipt({
-        items: items.map(item => ({
-          name: item.name,
-          category: item.category,
-          unitPriceTaxInJPY: item.unitPriceTaxInJPY,
-          qty: item.qty,
-        })),
-        paymentMethod: data.paymentMethod,
-        discountJPY: data.discountJPY,
-        serviceChargeRatePercent: data.serviceChargeRatePercent,
-        chargeEnabled: data.chargeEnabled,
-        chargeFixedJPY: data.chargeFixedJPY,
-      });
-      
-      toast.success(`伝票 ${receipt.id} を作成しました`);
-      setItems([]);
-      await fetchReceipts();
-      setActiveTab("list");
-    } catch (error) {
-      toast.error("伝票の作成に失敗しました");
     }
   };
 
@@ -372,14 +224,10 @@ export default function ReceiptsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="create">
             <Receipt className="mr-2 h-4 w-4" />
-            単一作成
-          </TabsTrigger>
-          <TabsTrigger value="multi">
-            <Plus className="mr-2 h-4 w-4" />
-            複数作成
+            伝票作成
           </TabsTrigger>
           <TabsTrigger value="list">
             <List className="mr-2 h-4 w-4" />
@@ -387,325 +235,8 @@ export default function ReceiptsPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* 新規作成タブ */}
+        {/* 伝票作成タブ（複数伝票作成がデフォルト） */}
         <TabsContent value="create" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* 左側：アイテム入力 */}
-            <div className="lg:col-span-2 space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>商品追加</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* メニューから追加 */}
-                  <div className="flex items-end gap-4">
-                    <div className="flex-1">
-                      <Label>メニューから追加</Label>
-                      <Popover open={menuOpen} onOpenChange={setMenuOpen}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={menuOpen}
-                            className="w-full justify-between"
-                          >
-                            {selectedMenu
-                              ? menuItems.find((item) => item.id === selectedMenu)?.name
-                              : "メニューを選択..."}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-full p-0">
-                          <Command>
-                            <CommandInput placeholder="メニューを検索..." />
-                            <CommandEmpty>メニューが見つかりません</CommandEmpty>
-                            <CommandGroup>
-                              {menuItems.map((item) => (
-                                <CommandItem
-                                  key={item.id}
-                                  value={item.id}
-                                  onSelect={(currentValue) => {
-                                    setSelectedMenu(currentValue === selectedMenu ? "" : currentValue);
-                                    if (currentValue !== selectedMenu) {
-                                      addFromMenu(item);
-                                    }
-                                  }}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      selectedMenu === item.id ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  <span className="flex-1">{item.name}</span>
-                                  <span className="text-muted-foreground">
-                                    {fmtJPY(item.priceTaxInJPY)}
-                                  </span>
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {/* 手動入力 */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <Label htmlFor="item-name">商品名</Label>
-                      <Input
-                        id="item-name"
-                        value={newItem.name}
-                        onChange={(e) =>
-                          setNewItem({ ...newItem, name: e.target.value })
-                        }
-                        placeholder="例: ボトル"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="item-category">カテゴリー</Label>
-                      <Select
-                        value={newItem.category}
-                        onValueChange={(value: ItemCategory) =>
-                          setNewItem({ ...newItem, category: value })
-                        }
-                      >
-                        <SelectTrigger id="item-category">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="item">商品</SelectItem>
-                          <SelectItem value="set">セット</SelectItem>
-                          <SelectItem value="nomination">指名</SelectItem>
-                          <SelectItem value="bottle">ボトル</SelectItem>
-                          <SelectItem value="other">その他</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="item-price">単価（税込）</Label>
-                      <Input
-                        id="item-price"
-                        type="number"
-                        value={newItem.unitPriceTaxInJPY}
-                        onChange={(e) =>
-                          setNewItem({
-                            ...newItem,
-                            unitPriceTaxInJPY: Number(e.target.value),
-                          })
-                        }
-                        placeholder="3000"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="item-qty">数量</Label>
-                      <Input
-                        id="item-qty"
-                        type="number"
-                        value={newItem.qty}
-                        onChange={(e) =>
-                          setNewItem({
-                            ...newItem,
-                            qty: Number(e.target.value),
-                          })
-                        }
-                        min="1"
-                      />
-                    </div>
-                  </div>
-                  <Button onClick={addItem} className="w-full">
-                    <Plus className="mr-2 h-4 w-4" />
-                    商品を追加
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* アイテムリスト */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>商品リスト</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {items.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-8">
-                      商品がまだ追加されていません
-                    </p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>商品名</TableHead>
-                          <TableHead>カテゴリー</TableHead>
-                          <TableHead className="text-right">単価</TableHead>
-                          <TableHead className="text-right">数量</TableHead>
-                          <TableHead className="text-right">小計</TableHead>
-                          <TableHead className="w-[50px]"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {items.map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell>{item.name}</TableCell>
-                            <TableCell>
-                              <Badge variant="secondary">
-                                {fmtItemCategory(item.category)}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {fmtJPY(item.unitPriceTaxInJPY)}
-                            </TableCell>
-                            <TableCell className="text-right">{item.qty}</TableCell>
-                            <TableCell className="text-right">
-                              {fmtJPY(item.unitPriceTaxInJPY * item.qty)}
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeItem(item.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* 右側：料金設定と合計 */}
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>料金設定</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="discount">割引（円）</Label>
-                    <Input
-                      id="discount"
-                      type="number"
-                      {...register("discountJPY", { valueAsNumber: true })}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="service-charge">サービス料（%）</Label>
-                    <Input
-                      id="service-charge"
-                      type="number"
-                      {...register("serviceChargeRatePercent", {
-                        valueAsNumber: true,
-                      })}
-                      placeholder="10"
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="charge-enabled"
-                      {...register("chargeEnabled")}
-                      className="rounded"
-                    />
-                    <Label htmlFor="charge-enabled">固定チャージを適用</Label>
-                  </div>
-                  {formValues.chargeEnabled && (
-                    <div>
-                      <Label htmlFor="charge-fixed">固定チャージ（円）</Label>
-                      <Input
-                        id="charge-fixed"
-                        type="number"
-                        {...register("chargeFixedJPY", { valueAsNumber: true })}
-                        placeholder="1000"
-                      />
-                    </div>
-                  )}
-                  <div>
-                    <Label htmlFor="payment">決済方法</Label>
-                    <Select
-                      value={formValues.paymentMethod}
-                      onValueChange={(value: PaymentMethod) =>
-                        setValue("paymentMethod", value)
-                      }
-                    >
-                      <SelectTrigger id="payment">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Cash">現金</SelectItem>
-                        <SelectItem value="Card">カード</SelectItem>
-                        <SelectItem value="QR">QRコード</SelectItem>
-                        <SelectItem value="Other">その他</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* 合計計算 */}
-              <Card className="border-brand-accent">
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Calculator className="mr-2 h-5 w-5" />
-                    合計計算
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between">
-                    <span>小計</span>
-                    <span className="font-semibold">{fmtJPY(totals.subtotal)}</span>
-                  </div>
-                  {formValues.discountJPY > 0 && (
-                    <div className="flex justify-between text-red-500">
-                      <span>割引</span>
-                      <span>-{fmtJPY(formValues.discountJPY)}</span>
-                    </div>
-                  )}
-                  {totals.serviceCharge > 0 && (
-                    <div className="flex justify-between">
-                      <span>サービス料（{formValues.serviceChargeRatePercent}%）</span>
-                      <span>{fmtJPY(totals.serviceCharge)}</span>
-                    </div>
-                  )}
-                  {totals.chargeFixed > 0 && (
-                    <div className="flex justify-between">
-                      <span>チャージ</span>
-                      <span>{fmtJPY(totals.chargeFixed)}</span>
-                    </div>
-                  )}
-                  <Separator />
-                  <div className="flex justify-between text-xl font-bold text-brand-accent">
-                    <span>合計（税込）</span>
-                    <span>{fmtJPY(totals.total)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>内消費税（10%）</span>
-                    <span>{fmtJPY(totals.taxIncluded)}</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* 伝票作成ボタン */}
-              <Button
-                onClick={handleSubmit(onSubmit)}
-                className="w-full bg-brand-primary hover:bg-brand-primary-light"
-                size="lg"
-                disabled={items.length === 0}
-              >
-                伝票を作成
-              </Button>
-            </div>
-          </div>
-        </TabsContent>
-
-        {/* 複数作成タブ */}
-        <TabsContent value="multi" className="space-y-6">
           <MultiReceiptForm 
             menuItems={menuItems} 
             onComplete={async () => {

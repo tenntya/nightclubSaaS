@@ -143,6 +143,27 @@ export async function cancelReceipt(id: string): Promise<Receipt> {
 }
 
 /**
+ * 複数の伝票を一括作成
+ */
+export async function createMultipleReceipts(
+  inputs: CreateReceiptInput[]
+): Promise<{ receipts: Receipt[], errors: string[] }> {
+  const receipts: Receipt[] = [];
+  const errors: string[] = [];
+  
+  for (const input of inputs) {
+    try {
+      const receipt = await createReceipt(input);
+      receipts.push(receipt);
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : "伝票作成エラー");
+    }
+  }
+  
+  return { receipts, errors };
+}
+
+/**
  * 伝票のバッチ操作
  */
 export async function batchReceipts(
