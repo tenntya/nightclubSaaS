@@ -76,7 +76,7 @@ interface ReceiptDraft {
 
 interface MultiReceiptFormProps {
   menuItems: MenuItem[];
-  onComplete: () => void;
+  onComplete?: () => void;
 }
 
 export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProps) {
@@ -260,8 +260,22 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
         errors.forEach(error => toast.error(error));
       }
       
-      if (createdReceipts.length > 0) {
+      if (createdReceipts.length > 0 && onComplete) {
         onComplete();
+      }
+      
+      // 成功したら伝票をリセット
+      if (createdReceipts.length > 0) {
+        setReceipts([{
+          id: `draft-${Date.now()}`,
+          items: [],
+          paymentMethod: "Cash",
+          discountJPY: 0,
+          serviceChargeRatePercent: 10,
+          chargeEnabled: true,
+          chargeFixedJPY: 1000,
+        }]);
+        setActiveReceiptIndex(0);
       }
     } catch (error) {
       toast.error("伝票の作成に失敗しました");
@@ -274,31 +288,33 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
     <div className="space-y-6">
       {/* ヘッダー */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">複数伝票作成</h2>
         <div className="flex gap-2">
-          <Button onClick={addReceipt} variant="outline">
+          <Button onClick={addReceipt} variant="outline" size="sm">
             <Plus className="mr-2 h-4 w-4" />
             新規伝票
           </Button>
-          <Button onClick={duplicateReceipt} variant="outline">
+          <Button onClick={duplicateReceipt} variant="outline" size="sm">
             <Copy className="mr-2 h-4 w-4" />
             複製
           </Button>
+        </div>
+        <div className="flex gap-2">
           <Button 
             onClick={() => saveAllReceipts(false)}
-            className="bg-brand-primary hover:bg-brand-primary-light"
+            variant="outline"
             disabled={receipts.every(r => r.items.length === 0)}
           >
             <Save className="mr-2 h-4 w-4" />
-            すべて保存（{receipts.filter(r => r.items.length > 0).length}件）
+            保存のみ（{receipts.filter(r => r.items.length > 0).length}件）
           </Button>
           <Button 
             onClick={() => saveAllReceipts(true)}
             className="bg-green-600 hover:bg-green-700 text-white"
+            size="lg"
             disabled={receipts.every(r => r.items.length === 0)}
           >
-            <CheckCircle className="mr-2 h-4 w-4" />
-            保存して会計（{receipts.filter(r => r.items.length > 0).length}件）
+            <CheckCircle className="mr-2 h-5 w-5" />
+            会計（{receipts.filter(r => r.items.length > 0).length}件）
           </Button>
         </div>
       </div>
