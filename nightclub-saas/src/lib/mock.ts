@@ -396,6 +396,16 @@ export const mockMenuStore = {
     menuItemsStore[index].active = active;
     return menuItemsStore[index];
   },
+
+  // メニュー削除
+  delete: async (id: string): Promise<{ id: string }> => {
+    const index = menuItemsStore.findIndex(item => item.id === id);
+    if (index === -1) {
+      throw new Error(`MenuItem not found: ${id}`);
+    }
+    menuItemsStore.splice(index, 1);
+    return { id };
+  },
 };
 
 // ========================

@@ -105,3 +105,21 @@ export async function toggleMenuActive(
     throw new Error("メニューアイテムの有効/無効切り替えに失敗しました");
   }
 }
+
+/**
+ * メニューアイテムを削除
+ */
+export async function deleteMenuItem(
+  id: string
+): Promise<{ id: string }> {
+  try {
+    const result = await mockMenuStore.delete(id);
+    return result;
+  } catch (error) {
+    console.error("Failed to delete menu item:", error);
+    if (error instanceof Error && error.message.includes("not found")) {
+      throw new Error("メニューが見つかりません");
+    }
+    throw new Error("メニューアイテムの削除に失敗しました");
+  }
+}

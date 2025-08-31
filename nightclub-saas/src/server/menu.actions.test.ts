@@ -3,7 +3,8 @@ import {
   listMenu, 
   createMenuItem, 
   updateMenuItem, 
-  toggleMenuActive 
+  toggleMenuActive,
+  deleteMenuItem 
 } from "./actions/menu";
 import type { MenuItem } from "@/lib/types";
 
@@ -177,6 +178,65 @@ describe("Menu Server Actions", () => {
     });
   });
 
+  describe("deleteMenuItem", () => {
+    it("正常にメニューアイテムを削除できる", async () => {
+      // まず作成
+      const created = await createMenuItem({
+        name: "削除テスト",
+        category: "other" as const,
+        priceTaxInJPY: 5000,
+      });
+
+      // 削除
+      const result = await deleteMenuItem(created.id);
+      expect(result.id).toBe(created.id);
+
+      // リストから削除されたことを確認
+      const items = await listMenu();
+      const deleted = items.find(item => item.id === created.id);
+      expect(deleted).toBeUndefined();
+    });
+
+    it("存在しないIDの場合エラーになる", async () => {
+      await expect(
+        deleteMenuItem("INVALID-DELETE-ID")
+      ).rejects.toThrow("メニューが見つかりません");
+    });
+
+    it("複数のアイテムを個別に削除できる", async () => {
+      // 複数作成
+      const item1 = await createMenuItem({
+        name: "削除アイテム1",
+        category: "item" as const,
+        priceTaxInJPY: 1000,
+      });
+      const item2 = await createMenuItem({
+        name: "削除アイテム2",
+        category: "item" as const,
+        priceTaxInJPY: 2000,
+      });
+      const item3 = await createMenuItem({
+        name: "削除アイテム3",
+        category: "item" as const,
+        priceTaxInJPY: 3000,
+      });
+
+      // 2つ削除
+      await deleteMenuItem(item1.id);
+      await deleteMenuItem(item2.id);
+
+      // item3は残っていることを確認
+      const items = await listMenu();
+      const remaining = items.find(item => item.id === item3.id);
+      expect(remaining).toBeDefined();
+      expect(remaining?.name).toBe("削除アイテム3");
+
+      // item1, item2は削除されていることを確認
+      expect(items.find(item => item.id === item1.id)).toBeUndefined();
+      expect(items.find(item => item.id === item2.id)).toBeUndefined();
+    });
+  });
+
   describe("統合テスト", () => {
     it("作成→更新→トグル→リストの一連の操作ができる", async () => {
       // 作成
@@ -203,6 +263,31 @@ describe("Menu Server Actions", () => {
       expect(target?.name).toBe("統合テスト更新済み");
       expect(target?.priceTaxInJPY).toBe(13000);
       expect(target?.active).toBe(false);
+    });
+
+    it("作成→削除→リストの一連の操作ができる", async () => {
+      // 初期の件数を記録
+      const initialItems = await listMenu();
+      const initialCount = initialItems.length;
+
+      // 作成
+      const created = await createMenuItem({
+        name: "削除統合テスト",
+        category: "bottle" as const,
+        priceTaxInJPY: 20000,
+      });
+
+      // 作成後の件数確認
+      const afterCreate = await listMenu();
+      expect(afterCreate.length).toBe(initialCount + 1);
+
+      // 削除
+      await deleteMenuItem(created.id);
+
+      // 削除後の件数確認
+      const afterDelete = await listMenu();
+      expect(afterDelete.length).toBe(initialCount);
+      expect(afterDelete.find(item => item.id === created.id)).toBeUndefined();
     });
   });
 });
