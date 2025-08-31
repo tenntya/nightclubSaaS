@@ -11,6 +11,7 @@ import {
   Wine,
   Moon,
   Sun,
+  Menu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -31,6 +32,11 @@ const menuItems = [
     href: "/receipts",
     label: "伝票管理",
     icon: Receipt,
+  },
+  {
+    href: "/settings/menu",
+    label: "メニュー管理",
+    icon: Menu,
   },
   {
     href: "/settings",
