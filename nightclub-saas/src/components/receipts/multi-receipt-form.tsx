@@ -398,9 +398,9 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
 
         {receipts.map((receipt, index) => (
           <TabsContent key={receipt.id} value={index.toString()} className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
               {/* 左側：商品入力 */}
-              <div className="lg:col-span-2 space-y-6">
+              <div className="xl:col-span-2 space-y-6">
                 <Card>
                   <CardHeader>
                     <CardTitle>商品追加</CardTitle>
@@ -591,7 +591,7 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
               </div>
 
               {/* 右側：料金設定と合計 */}
-              <div className="space-y-6">
+              <div className="xl:col-span-1 space-y-6">
                 <Card>
                   <CardHeader>
                     <CardTitle>料金設定</CardTitle>
@@ -661,17 +661,6 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
                   </CardContent>
                 </Card>
 
-                {/* 個別の会計ボタン */}
-                <Button 
-                  onClick={() => saveSingleReceipt(index, true)}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white"
-                  size="lg"
-                  disabled={receipt.items.length === 0}
-                >
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  この伝票を会計
-                </Button>
-
                 {/* 合計計算 */}
                 <Card className="border-brand-accent">
                   <CardHeader>
@@ -714,6 +703,17 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* 個別の会計ボタン */}
+                <Button 
+                  onClick={() => saveSingleReceipt(index, true)}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white"
+                  size="lg"
+                  disabled={receipt.items.length === 0}
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  この伝票を会計
+                </Button>
               </div>
             </div>
           </TabsContent>
