@@ -279,6 +279,54 @@ export interface ReceiptAssignment {
 }
 
 // ========================
+// 給与管理関連
+// ========================
+export interface StaffSalary {
+  id: string;
+  staffId: string;
+  hourlyWage: number; // 時給（円）
+  transportationAllowance: number; // 交通費（日額）
+  drinkBackRate?: number; // ドリンクバック率（%）
+  receiptBackRate?: number; // 売上バック率（%）
+  active: boolean;
+  effectiveFrom: string; // 適用開始日
+  effectiveUntil?: string; // 適用終了日
+}
+
+export interface PayrollRecord {
+  id: string;
+  staffId: string;
+  yearMonth: string; // YYYY-MM
+  workDays: number; // 出勤日数
+  workMinutes: number; // 総勤務時間（分）
+  basePayJPY: number; // 基本給
+  transportationJPY: number; // 交通費
+  drinkBackJPY: number; // ドリンクバック
+  receiptBackJPY: number; // 売上バック
+  adjustmentJPY: number; // 調整額（プラスマイナス）
+  totalPayJPY: number; // 支給総額
+  deductionJPY: number; // 控除額
+  netPayJPY: number; // 手取り額
+  status: "draft" | "confirmed" | "paid"; // ステータス
+  note?: string;
+  createdAt: string;
+  confirmedAt?: string;
+  paidAt?: string;
+}
+
+export interface PayrollSummary {
+  yearMonth: string;
+  totalStaff: number;
+  totalBasePayJPY: number;
+  totalTransportationJPY: number;
+  totalIncentiveJPY: number; // ドリンクバック + 売上バック
+  totalAdjustmentJPY: number;
+  totalPayrollJPY: number;
+  totalDeductionJPY: number;
+  totalNetPayJPY: number;
+}
+
+// ========================
 // バッチ操作関連
 // ========================
 export type BatchReceiptOp = {

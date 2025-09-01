@@ -13,6 +13,7 @@ import {
   Sun,
   Menu,
   Clock,
+  DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -43,6 +44,11 @@ const menuItems = [
     href: "/staff-attendance",
     label: "勤怠管理",
     icon: Clock,
+  },
+  {
+    href: "/payroll",
+    label: "給与管理",
+    icon: DollarSign,
   },
   {
     href: "/settings",

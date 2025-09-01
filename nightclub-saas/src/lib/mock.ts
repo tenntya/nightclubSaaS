@@ -17,7 +17,10 @@ import type {
   StaffAttendanceRecord,
   AttendanceRequest,
   StaffShiftWish,
-  StaffShiftPlan
+  StaffShiftPlan,
+  StaffSalary,
+  PayrollRecord,
+  PayrollSummary
 } from "./types";
 import { generateReceiptId, generateAttendanceId, calcReceiptTotals } from "./calc";
 
@@ -946,6 +949,222 @@ export const mockStaffAttendanceStore = {
       return attendanceRequestsStore.filter(r => r.status === status);
     }
     return [...attendanceRequestsStore];
+  },
+};
+
+// ========================
+// 給与管理モックデータ
+// ========================
+
+// スタッフ給与設定
+const staffSalaryStore: StaffSalary[] = [
+  {
+    id: "salary-001",
+    staffId: "staff-001",
+    hourlyWage: 1500,
+    transportationAllowance: 1000,
+    drinkBackRate: 10,
+    receiptBackRate: 5,
+    active: true,
+    effectiveFrom: "2025-01-01",
+  },
+  {
+    id: "salary-002",
+    staffId: "staff-002",
+    hourlyWage: 1400,
+    transportationAllowance: 800,
+    drinkBackRate: 10,
+    receiptBackRate: 5,
+    active: true,
+    effectiveFrom: "2025-01-01",
+  },
+  {
+    id: "salary-003",
+    staffId: "staff-003",
+    hourlyWage: 1600,
+    transportationAllowance: 1200,
+    drinkBackRate: 15,
+    receiptBackRate: 7,
+    active: true,
+    effectiveFrom: "2025-01-01",
+  },
+  {
+    id: "salary-004",
+    staffId: "staff-004",
+    hourlyWage: 2000,
+    transportationAllowance: 1500,
+    active: true,
+    effectiveFrom: "2025-01-01",
+  },
+  {
+    id: "salary-005",
+    staffId: "staff-005",
+    hourlyWage: 3000,
+    transportationAllowance: 2000,
+    active: true,
+    effectiveFrom: "2025-01-01",
+  },
+];
+
+// 給与記録
+let payrollRecordsStore: PayrollRecord[] = [];
+
+// 給与ストア関数
+export const mockPayrollStore = {
+  // スタッフ給与設定取得
+  getSalaryByStaffId: async (staffId: string): Promise<StaffSalary | undefined> => {
+    return staffSalaryStore.find(s => s.staffId === staffId && s.active);
+  },
+
+  // 全スタッフ給与設定取得
+  getAllSalaries: async (): Promise<StaffSalary[]> => {
+    return [...staffSalaryStore];
+  },
+
+  // 給与設定更新
+  updateSalary: async (staffId: string, salary: Partial<StaffSalary>): Promise<StaffSalary> => {
+    const index = staffSalaryStore.findIndex(s => s.staffId === staffId && s.active);
+    if (index === -1) {
+      // 新規作成
+      const newSalary: StaffSalary = {
+        id: `salary-${Date.now()}`,
+        staffId,
+        hourlyWage: salary.hourlyWage ?? 1500,
+        transportationAllowance: salary.transportationAllowance ?? 1000,
+        drinkBackRate: salary.drinkBackRate,
+        receiptBackRate: salary.receiptBackRate,
+        active: true,
+        effectiveFrom: new Date().toISOString().split('T')[0],
+      };
+      staffSalaryStore.push(newSalary);
+      return newSalary;
+    } else {
+      // 更新
+      staffSalaryStore[index] = { ...staffSalaryStore[index], ...salary };
+      return staffSalaryStore[index];
+    }
+  },
+
+  // 給与計算
+  calculatePayroll: async (staffId: string, yearMonth: string): Promise<PayrollRecord> => {
+    // 勤怠データ取得
+    const attendanceRecords = await mockStaffAttendanceStore.listByMonth(yearMonth);
+    const staffRecords = attendanceRecords.filter(r => r.staffId === staffId);
+    
+    // 給与設定取得
+    const salary = await mockPayrollStore.getSalaryByStaffId(staffId);
+    if (!salary) {
+      throw new Error("給与設定が見つかりません");
+    }
+
+    // 勤務時間計算
+    let totalMinutes = 0;
+    let workDays = 0;
+    staffRecords.forEach(record => {
+      if (record.checkInAt && record.checkOutAt) {
+        const start = new Date(record.checkInAt);
+        const end = new Date(record.checkOutAt);
+        const diffMs = end.getTime() - start.getTime();
+        totalMinutes += Math.floor(diffMs / (1000 * 60));
+        workDays++;
+      }
+    });
+
+    // 基本給計算（時給 × 勤務時間）
+    const basePayJPY = Math.floor((salary.hourlyWage * totalMinutes) / 60);
+    
+    // 交通費計算（日額 × 出勤日数）
+    const transportationJPY = salary.transportationAllowance * workDays;
+    
+    // インセンティブ計算（仮実装）
+    const drinkBackJPY = salary.drinkBackRate ? Math.floor(Math.random() * 30000) : 0;
+    const receiptBackJPY = salary.receiptBackRate ? Math.floor(Math.random() * 20000) : 0;
+    
+    // 調整額（仮実装）
+    const adjustmentJPY = 0;
+    
+    // 支給総額
+    const totalPayJPY = basePayJPY + transportationJPY + drinkBackJPY + receiptBackJPY + adjustmentJPY;
+    
+    // 控除額（簡易計算：10%）
+    const deductionJPY = Math.floor(totalPayJPY * 0.1);
+    
+    // 手取り額
+    const netPayJPY = totalPayJPY - deductionJPY;
+
+    const payrollRecord: PayrollRecord = {
+      id: `payroll-${Date.now()}`,
+      staffId,
+      yearMonth,
+      workDays,
+      workMinutes: totalMinutes,
+      basePayJPY,
+      transportationJPY,
+      drinkBackJPY,
+      receiptBackJPY,
+      adjustmentJPY,
+      totalPayJPY,
+      deductionJPY,
+      netPayJPY,
+      status: "draft",
+      createdAt: new Date().toISOString(),
+    };
+
+    // 既存レコードがあれば更新、なければ追加
+    const existingIndex = payrollRecordsStore.findIndex(
+      r => r.staffId === staffId && r.yearMonth === yearMonth
+    );
+    if (existingIndex >= 0) {
+      payrollRecordsStore[existingIndex] = payrollRecord;
+    } else {
+      payrollRecordsStore.push(payrollRecord);
+    }
+
+    return payrollRecord;
+  },
+
+  // 月次給与記録取得
+  getPayrollByMonth: async (yearMonth: string): Promise<PayrollRecord[]> => {
+    return payrollRecordsStore.filter(r => r.yearMonth === yearMonth);
+  },
+
+  // 給与記録更新
+  updatePayrollStatus: async (
+    id: string,
+    status: "draft" | "confirmed" | "paid"
+  ): Promise<PayrollRecord> => {
+    const record = payrollRecordsStore.find(r => r.id === id);
+    if (!record) {
+      throw new Error("給与記録が見つかりません");
+    }
+
+    record.status = status;
+    if (status === "confirmed") {
+      record.confirmedAt = new Date().toISOString();
+    } else if (status === "paid") {
+      record.paidAt = new Date().toISOString();
+    }
+
+    return record;
+  },
+
+  // 月次サマリー取得
+  getPayrollSummary: async (yearMonth: string): Promise<PayrollSummary> => {
+    const records = await mockPayrollStore.getPayrollByMonth(yearMonth);
+    
+    const summary: PayrollSummary = {
+      yearMonth,
+      totalStaff: records.length,
+      totalBasePayJPY: records.reduce((sum, r) => sum + r.basePayJPY, 0),
+      totalTransportationJPY: records.reduce((sum, r) => sum + r.transportationJPY, 0),
+      totalIncentiveJPY: records.reduce((sum, r) => sum + r.drinkBackJPY + r.receiptBackJPY, 0),
+      totalAdjustmentJPY: records.reduce((sum, r) => sum + r.adjustmentJPY, 0),
+      totalPayrollJPY: records.reduce((sum, r) => sum + r.totalPayJPY, 0),
+      totalDeductionJPY: records.reduce((sum, r) => sum + r.deductionJPY, 0),
+      totalNetPayJPY: records.reduce((sum, r) => sum + r.netPayJPY, 0),
+    };
+
+    return summary;
   },
 };
 
