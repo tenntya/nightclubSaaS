@@ -306,14 +306,7 @@ export const getMonthlyKPI = (): KPIData => {
   };
 };
 
-// スタッフリスト（勤怠用）
-export const mockStaff = [
-  { id: "staff-1", name: "佐藤 あやか", role: "キャスト" },
-  { id: "staff-2", name: "鈴木 まりあ", role: "キャスト" },
-  { id: "staff-3", name: "田中 ゆい", role: "キャスト" },
-  { id: "staff-4", name: "山田 太郎", role: "マネージャー" },
-  { id: "staff-5", name: "高橋 次郎", role: "バーテンダー" },
-];
+// スタッフリスト（勤怠用） - 新しい定義は下部にあるため、この古い定義は削除
 
 // 商品マスタ（簡易版）
 export const mockProducts = [
