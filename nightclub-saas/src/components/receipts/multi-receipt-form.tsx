@@ -61,7 +61,7 @@ import type {
   MenuItem,
 } from "@/lib/types";
 import { calcReceiptTotals, generateReceiptId } from "@/lib/calc";
-import { fmtJPY, fmtItemCategory } from "@/lib/format";
+import { fmtJPY, fmtItemCategory, fmtDate } from "@/lib/format";
 import { createReceipt, createMultipleReceipts, payReceipt } from "@/server/actions/receipts";
 
 interface ReceiptDraft {
@@ -72,6 +72,7 @@ interface ReceiptDraft {
   serviceChargeRatePercent: number;
   chargeEnabled: boolean;
   chargeFixedJPY: number;
+  createdAt: string; // 入店時刻（伝票作成時刻）
 }
 
 interface MultiReceiptFormProps {
@@ -90,6 +91,7 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
       serviceChargeRatePercent: 10,
       chargeEnabled: true,
       chargeFixedJPY: 1000,
+      createdAt: new Date().toISOString(),
     }
   ]);
   
@@ -119,6 +121,7 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
       serviceChargeRatePercent: 10,
       chargeEnabled: true,
       chargeFixedJPY: 1000,
+      createdAt: new Date().toISOString(),
     };
     setReceipts([...receipts, newReceipt]);
     setActiveReceiptIndex(receipts.length);
@@ -130,6 +133,7 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
       ...currentReceipt,
       id: `draft-${Date.now()}`,
       items: [...currentReceipt.items.map(item => ({...item, id: `item-${Date.now()}-${Math.random()}`}))],
+      createdAt: new Date().toISOString(), // 新しい入店時刻を設定
     };
     setReceipts([...receipts, newReceipt]);
     setActiveReceiptIndex(receipts.length);
@@ -255,6 +259,7 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
               serviceChargeRatePercent: 10,
               chargeEnabled: true,
               chargeFixedJPY: 1000,
+              createdAt: new Date().toISOString(),
             };
             setReceipts(newReceipts);
           } catch (error) {
@@ -362,26 +367,31 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
       <Tabs value={activeReceiptIndex.toString()} onValueChange={(v) => setActiveReceiptIndex(Number(v))}>
         <TabsList className="w-full justify-start">
           {receipts.map((receipt, index) => (
-            <TabsTrigger key={receipt.id} value={index.toString()} className="relative">
-              伝票 {index + 1}
-              {receipt.items.length > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {receipt.items.length}
-                </Badge>
-              )}
-              {receipts.length > 1 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="ml-2 h-4 w-4 p-0"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeReceipt(index);
-                  }}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
+            <TabsTrigger key={receipt.id} value={index.toString()} className="relative flex-col items-start">
+              <div className="flex items-center">
+                伝票 {index + 1}
+                {receipt.items.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {receipt.items.length}
+                  </Badge>
+                )}
+                {receipts.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="ml-2 h-4 w-4 p-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeReceipt(index);
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                入店: {fmtDate(receipt.createdAt)}
+              </div>
             </TabsTrigger>
           ))}
         </TabsList>
