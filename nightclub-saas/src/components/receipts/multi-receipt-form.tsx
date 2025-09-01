@@ -367,7 +367,7 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
       <Tabs value={activeReceiptIndex.toString()} onValueChange={(v) => setActiveReceiptIndex(Number(v))}>
         <TabsList className="w-full justify-start">
           {receipts.map((receipt, index) => (
-            <TabsTrigger key={receipt.id} value={index.toString()} className="relative flex-col items-start">
+            <TabsTrigger key={receipt.id} value={index.toString()} className="relative flex-col items-start h-auto py-2">
               <div className="flex items-center">
                 伝票 {index + 1}
                 {receipt.items.length > 0 && (
@@ -389,7 +389,7 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
                   </Button>
                 )}
               </div>
-              <div className="text-xs text-muted-foreground">
+              <div className="text-xs text-muted-foreground mt-1">
                 入店: {fmtDate(receipt.createdAt)}
               </div>
             </TabsTrigger>
@@ -662,25 +662,15 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
                 </Card>
 
                 {/* 個別の会計ボタン */}
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={() => saveSingleReceipt(index, false)}
-                    variant="outline"
-                    className="w-full"
-                    disabled={receipt.items.length === 0}
-                  >
-                    <Save className="mr-2 h-4 w-4" />
-                    この伝票を保存
-                  </Button>
-                  <Button 
-                    onClick={() => saveSingleReceipt(index, true)}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white"
-                    disabled={receipt.items.length === 0}
-                  >
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                    この伝票を会計
-                  </Button>
-                </div>
+                <Button 
+                  onClick={() => saveSingleReceipt(index, true)}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white"
+                  size="lg"
+                  disabled={receipt.items.length === 0}
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  この伝票を会計
+                </Button>
 
                 {/* 合計計算 */}
                 <Card className="border-brand-accent">
