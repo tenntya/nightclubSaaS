@@ -30,11 +30,6 @@ const menuItems = [
     icon: Users,
   },
   {
-    href: "/staff-attendance",
-    label: "勤怠管理（スタッフ）",
-    icon: Clock,
-  },
-  {
     href: "/receipts",
     label: "伝票管理",
     icon: Receipt,
@@ -43,6 +38,11 @@ const menuItems = [
     href: "/settings/menu",
     label: "メニュー管理",
     icon: Menu,
+  },
+  {
+    href: "/staff-attendance",
+    label: "勤怠管理",
+    icon: Clock,
   },
   {
     href: "/settings",
