@@ -209,6 +209,76 @@ export interface MenuItem {
 }
 
 // ========================
+// スタッフ勤怠管理関連
+// ========================
+export interface Staff {
+  id: string;
+  name: string;
+  role: UserRole;
+  punchToken?: string; // QR用（MVP固定トークン）
+  active: boolean;
+  email?: string;
+}
+
+// 打刻レコード（1回の入退店をまとめる日単位の実績）
+export interface StaffAttendanceRecord {
+  id: string;
+  staffId: string;
+  businessDate: string; // 例: 2025-09-01（営業日基準）
+  checkInAt?: string;   // ISO8601
+  checkOutAt?: string;  // ISO8601
+  status: "open" | "closed" | "approved" | "rejected";
+  reason?: "normal" | "early" | "late" | "dohan";
+  note?: string;
+  audit?: AuditTrail[];
+}
+
+export interface AuditTrail {
+  at: string; // ISO8601
+  userId: string;
+  action: string; // created/checked_in/checked_out/edited/approved/rejected
+  diff?: Record<string, any>;
+}
+
+// 申請（打刻修正）
+export interface AttendanceRequest {
+  id: string;
+  recordId: string; // StaffAttendanceRecord.id
+  staffId: string;
+  type: "edit";
+  payload: Partial<Pick<StaffAttendanceRecord, "checkInAt"|"checkOutAt"|"reason"|"note">>;
+  status: "pending" | "approved" | "rejected";
+  comment?: string; // 承認者コメント
+  createdAt: string;
+  decidedAt?: string;
+  decidedBy?: string; // Admin/Owner
+}
+
+// シフト
+export interface StaffShiftWish {
+  id: string;
+  staffId: string;
+  month: string; // 2025-09
+  wishes: Array<{ date: string; available: boolean; memo?: string }>;
+}
+
+export interface StaffShiftPlan {
+  id: string;
+  month: string; // 2025-09
+  assignments: Array<{ date: string; staffId: string; start?: string; end?: string; memo?: string }>;
+  published: boolean;
+}
+
+// 伝票バック（将来）
+export interface ReceiptAssignment {
+  id: string;
+  receiptId: string;
+  staffId: string;
+  type: "drink_back" | "receipt_back";
+  amountJPY?: number; // 算出は将来の計算規則に従う
+}
+
+// ========================
 // バッチ操作関連
 // ========================
 export type BatchReceiptOp = {

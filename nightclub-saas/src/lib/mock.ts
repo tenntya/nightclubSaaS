@@ -12,7 +12,12 @@ import type {
   BatchReceiptOp, 
   BatchReceiptResult,
   CreateReceiptInput,
-  UpdateReceiptInput 
+  UpdateReceiptInput,
+  Staff,
+  StaffAttendanceRecord,
+  AttendanceRequest,
+  StaffShiftWish,
+  StaffShiftPlan
 } from "./types";
 import { generateReceiptId, generateAttendanceId, calcReceiptTotals } from "./calc";
 
@@ -558,5 +563,460 @@ export const mockReceiptStore = {
     }
 
     return results;
+  },
+};
+
+// ========================
+// スタッフ勤怠管理モックデータ
+// ========================
+
+// スタッフデータ
+export const mockStaff: Staff[] = [
+  {
+    id: "staff-001",
+    name: "田中 花子",
+    role: "Staff",
+    punchToken: "TK001",
+    active: true,
+    email: "tanaka@example.com",
+  },
+  {
+    id: "staff-002",
+    name: "佐藤 美咲",
+    role: "Staff",
+    punchToken: "ST002",
+    active: true,
+    email: "sato@example.com",
+  },
+  {
+    id: "staff-003",
+    name: "鈴木 あゆみ",
+    role: "Staff",
+    punchToken: "SZ003",
+    active: true,
+    email: "suzuki@example.com",
+  },
+  {
+    id: "staff-004",
+    name: "高橋 恵子",
+    role: "Admin",
+    punchToken: "TH004",
+    active: true,
+    email: "takahashi@example.com",
+  },
+  {
+    id: "staff-005",
+    name: "山田 太郎",
+    role: "Owner",
+    punchToken: "YM005",
+    active: true,
+    email: "yamada@example.com",
+  },
+];
+
+// スタッフ勤怠レコード
+let staffAttendanceStore: StaffAttendanceRecord[] = [];
+
+// 申請レコード
+let attendanceRequestsStore: AttendanceRequest[] = [];
+
+// シフト希望
+let staffShiftWishStore: StaffShiftWish[] = [];
+
+// シフト計画
+let staffShiftPlanStore: StaffShiftPlan[] = [];
+
+// 最後の打刻時刻を記録（二重打刻防止用）
+const lastPunchTimes: Record<string, { checkIn?: Date; checkOut?: Date }> = {};
+
+// スタッフストア関数
+export const mockStaffStore = {
+  // スタッフ一覧取得
+  list: async (): Promise<Staff[]> => {
+    return [...mockStaff];
+  },
+
+  // スタッフ取得（トークンまたはIDで）
+  getByToken: async (token: string): Promise<Staff | undefined> => {
+    return mockStaff.find(s => s.punchToken === token);
+  },
+
+  getById: async (id: string): Promise<Staff | undefined> => {
+    return mockStaff.find(s => s.id === id);
+  },
+};
+
+// 勤怠レコードID生成
+const generateAttendanceRecordId = (): string => {
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+  const counter = String(staffAttendanceStore.length + 1).padStart(3, '0');
+  return `ATT-${dateStr}-${counter}`;
+};
+
+// 申請ID生成
+const generateRequestId = (): string => {
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+  const counter = String(attendanceRequestsStore.length + 1).padStart(3, '0');
+  return `REQ-${dateStr}-${counter}`;
+};
+
+// 営業日を取得（20:00開始）
+const getBusinessDate = (date: Date = new Date()): string => {
+  const d = new Date(date);
+  const hours = d.getHours();
+  if (hours < 20) {
+    d.setDate(d.getDate() - 1);
+  }
+  return d.toISOString().split('T')[0];
+};
+
+// スタッフ勤怠ストア関数
+export const mockStaffAttendanceStore = {
+  // 出勤打刻
+  checkIn: async (params: { 
+    token: string; 
+    reason?: "normal" | "early" | "late" | "dohan";
+    note?: string;
+  }): Promise<StaffAttendanceRecord> => {
+    const staff = await mockStaffStore.getByToken(params.token);
+    if (!staff) {
+      throw new Error("無効なトークンです");
+    }
+
+    // 二重打刻防止（5秒以内）
+    const lastPunch = lastPunchTimes[staff.id];
+    if (lastPunch?.checkIn) {
+      const timeDiff = Date.now() - lastPunch.checkIn.getTime();
+      if (timeDiff < 5000) {
+        throw new Error("連続打刻はできません。しばらくお待ちください。");
+      }
+    }
+
+    const businessDate = getBusinessDate();
+    const now = new Date().toISOString();
+
+    // 既存レコードをチェック
+    let record = staffAttendanceStore.find(
+      r => r.staffId === staff.id && r.businessDate === businessDate
+    );
+
+    if (record && record.checkInAt) {
+      throw new Error("既に出勤打刻済みです");
+    }
+
+    if (!record) {
+      // 新規レコード作成
+      record = {
+        id: generateAttendanceRecordId(),
+        staffId: staff.id,
+        businessDate,
+        checkInAt: now,
+        status: "open",
+        reason: params.reason ?? "normal",
+        note: params.note,
+        audit: [
+          {
+            at: now,
+            userId: staff.id,
+            action: "checked_in",
+            diff: { checkInAt: now, reason: params.reason },
+          },
+        ],
+      };
+      staffAttendanceStore.push(record);
+    } else {
+      // 既存レコードを更新
+      record.checkInAt = now;
+      record.reason = params.reason ?? "normal";
+      record.note = params.note;
+      record.audit = record.audit ?? [];
+      record.audit.push({
+        at: now,
+        userId: staff.id,
+        action: "checked_in",
+        diff: { checkInAt: now, reason: params.reason },
+      });
+    }
+
+    // 最後の打刻時刻を記録
+    if (!lastPunchTimes[staff.id]) {
+      lastPunchTimes[staff.id] = {};
+    }
+    lastPunchTimes[staff.id].checkIn = new Date();
+
+    return record;
+  },
+
+  // 退勤打刻
+  checkOut: async (params: { token: string; note?: string }): Promise<StaffAttendanceRecord> => {
+    const staff = await mockStaffStore.getByToken(params.token);
+    if (!staff) {
+      throw new Error("無効なトークンです");
+    }
+
+    // 二重打刻防止（5秒以内）
+    const lastPunch = lastPunchTimes[staff.id];
+    if (lastPunch?.checkOut) {
+      const timeDiff = Date.now() - lastPunch.checkOut.getTime();
+      if (timeDiff < 5000) {
+        throw new Error("連続打刻はできません。しばらくお待ちください。");
+      }
+    }
+
+    const businessDate = getBusinessDate();
+    const now = new Date().toISOString();
+
+    const record = staffAttendanceStore.find(
+      r => r.staffId === staff.id && r.businessDate === businessDate && r.status === "open"
+    );
+
+    if (!record) {
+      throw new Error("出勤打刻がありません");
+    }
+
+    if (record.checkOutAt) {
+      throw new Error("既に退勤打刻済みです");
+    }
+
+    record.checkOutAt = now;
+    record.status = "closed";
+    if (params.note) {
+      record.note = params.note;
+    }
+    record.audit = record.audit ?? [];
+    record.audit.push({
+      at: now,
+      userId: staff.id,
+      action: "checked_out",
+      diff: { checkOutAt: now },
+    });
+
+    // 最後の打刻時刻を記録
+    if (!lastPunchTimes[staff.id]) {
+      lastPunchTimes[staff.id] = {};
+    }
+    lastPunchTimes[staff.id].checkOut = new Date();
+
+    return record;
+  },
+
+  // 本日の勤怠一覧取得
+  listToday: async (): Promise<StaffAttendanceRecord[]> => {
+    const businessDate = getBusinessDate();
+    return staffAttendanceStore.filter(r => r.businessDate === businessDate);
+  },
+
+  // 月次勤怠一覧取得
+  listByMonth: async (month: string): Promise<StaffAttendanceRecord[]> => {
+    // month format: "2025-09"
+    return staffAttendanceStore.filter(r => r.businessDate.startsWith(month));
+  },
+
+  // 特定スタッフの勤怠取得
+  getByStaffId: async (staffId: string, month?: string): Promise<StaffAttendanceRecord[]> => {
+    let records = staffAttendanceStore.filter(r => r.staffId === staffId);
+    if (month) {
+      records = records.filter(r => r.businessDate.startsWith(month));
+    }
+    return records;
+  },
+
+  // 修正申請作成
+  requestEdit: async (params: {
+    recordId: string;
+    staffId: string;
+    payload: Partial<Pick<StaffAttendanceRecord, "checkInAt" | "checkOutAt" | "reason" | "note">>;
+  }): Promise<AttendanceRequest> => {
+    const record = staffAttendanceStore.find(r => r.id === params.recordId);
+    if (!record) {
+      throw new Error("勤怠レコードが見つかりません");
+    }
+
+    if (record.staffId !== params.staffId) {
+      throw new Error("他のスタッフの勤怠は編集できません");
+    }
+
+    const request: AttendanceRequest = {
+      id: generateRequestId(),
+      recordId: params.recordId,
+      staffId: params.staffId,
+      type: "edit",
+      payload: params.payload,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    };
+
+    attendanceRequestsStore.push(request);
+    return request;
+  },
+
+  // 申請承認
+  approveRequest: async (params: {
+    requestId: string;
+    approverUserId: string;
+    comment?: string;
+  }): Promise<AttendanceRequest> => {
+    const request = attendanceRequestsStore.find(r => r.id === params.requestId);
+    if (!request) {
+      throw new Error("申請が見つかりません");
+    }
+
+    if (request.status !== "pending") {
+      throw new Error("既に処理済みの申請です");
+    }
+
+    const record = staffAttendanceStore.find(r => r.id === request.recordId);
+    if (!record) {
+      throw new Error("勤怠レコードが見つかりません");
+    }
+
+    // レコードを更新
+    const now = new Date().toISOString();
+    const diff: Record<string, any> = {};
+    
+    if (request.payload.checkInAt !== undefined) {
+      diff.checkInAt = { from: record.checkInAt, to: request.payload.checkInAt };
+      record.checkInAt = request.payload.checkInAt;
+    }
+    if (request.payload.checkOutAt !== undefined) {
+      diff.checkOutAt = { from: record.checkOutAt, to: request.payload.checkOutAt };
+      record.checkOutAt = request.payload.checkOutAt;
+    }
+    if (request.payload.reason !== undefined) {
+      diff.reason = { from: record.reason, to: request.payload.reason };
+      record.reason = request.payload.reason;
+    }
+    if (request.payload.note !== undefined) {
+      diff.note = { from: record.note, to: request.payload.note };
+      record.note = request.payload.note;
+    }
+
+    record.status = "approved";
+    record.audit = record.audit ?? [];
+    record.audit.push({
+      at: now,
+      userId: params.approverUserId,
+      action: "approved",
+      diff,
+    });
+
+    // 申請を更新
+    request.status = "approved";
+    request.decidedAt = now;
+    request.decidedBy = params.approverUserId;
+    request.comment = params.comment;
+
+    return request;
+  },
+
+  // 申請却下
+  rejectRequest: async (params: {
+    requestId: string;
+    approverUserId: string;
+    comment?: string;
+  }): Promise<AttendanceRequest> => {
+    const request = attendanceRequestsStore.find(r => r.id === params.requestId);
+    if (!request) {
+      throw new Error("申請が見つかりません");
+    }
+
+    if (request.status !== "pending") {
+      throw new Error("既に処理済みの申請です");
+    }
+
+    const now = new Date().toISOString();
+    request.status = "rejected";
+    request.decidedAt = now;
+    request.decidedBy = params.approverUserId;
+    request.comment = params.comment;
+
+    // レコードの監査ログに却下を記録
+    const record = staffAttendanceStore.find(r => r.id === request.recordId);
+    if (record) {
+      record.audit = record.audit ?? [];
+      record.audit.push({
+        at: now,
+        userId: params.approverUserId,
+        action: "rejected",
+        diff: { requestId: request.id },
+      });
+    }
+
+    return request;
+  },
+
+  // 申請一覧取得
+  listRequests: async (status?: "pending" | "approved" | "rejected"): Promise<AttendanceRequest[]> => {
+    if (status) {
+      return attendanceRequestsStore.filter(r => r.status === status);
+    }
+    return [...attendanceRequestsStore];
+  },
+};
+
+// シフトストア関数
+export const mockShiftStore = {
+  // シフト希望提出
+  submitWish: async (params: {
+    staffId: string;
+    month: string;
+    wishes: Array<{ date: string; available: boolean; memo?: string }>;
+  }): Promise<StaffShiftWish> => {
+    const existing = staffShiftWishStore.find(
+      w => w.staffId === params.staffId && w.month === params.month
+    );
+
+    if (existing) {
+      existing.wishes = params.wishes;
+      return existing;
+    }
+
+    const wish: StaffShiftWish = {
+      id: `WISH-${Date.now()}`,
+      staffId: params.staffId,
+      month: params.month,
+      wishes: params.wishes,
+    };
+
+    staffShiftWishStore.push(wish);
+    return wish;
+  },
+
+  // シフト希望取得
+  getWishes: async (month: string): Promise<StaffShiftWish[]> => {
+    return staffShiftWishStore.filter(w => w.month === month);
+  },
+
+  // シフト計画作成・更新
+  updatePlan: async (params: {
+    month: string;
+    assignments: Array<{ date: string; staffId: string; start?: string; end?: string; memo?: string }>;
+    published?: boolean;
+  }): Promise<StaffShiftPlan> => {
+    let plan = staffShiftPlanStore.find(p => p.month === params.month);
+
+    if (!plan) {
+      plan = {
+        id: `PLAN-${Date.now()}`,
+        month: params.month,
+        assignments: params.assignments,
+        published: params.published ?? false,
+      };
+      staffShiftPlanStore.push(plan);
+    } else {
+      plan.assignments = params.assignments;
+      if (params.published !== undefined) {
+        plan.published = params.published;
+      }
+    }
+
+    return plan;
+  },
+
+  // シフト計画取得
+  getPlan: async (month: string): Promise<StaffShiftPlan | undefined> => {
+    return staffShiftPlanStore.find(p => p.month === month);
   },
 };

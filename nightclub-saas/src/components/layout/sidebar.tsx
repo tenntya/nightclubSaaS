@@ -12,6 +12,7 @@ import {
   Moon,
   Sun,
   Menu,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -27,6 +28,11 @@ const menuItems = [
     href: "/attendance",
     label: "来店管理",
     icon: Users,
+  },
+  {
+    href: "/staff-attendance",
+    label: "勤怠管理（スタッフ）",
+    icon: Clock,
   },
   {
     href: "/receipts",
