@@ -15,9 +15,9 @@ import {
   getRequestList, 
   approveRequest, 
   rejectRequest,
-  getStaffList,
-  calculateWorkMinutes
+  getStaffList
 } from "@/server/actions/staff-attendance";
+import { calculateWorkMinutes } from "@/lib/attendance-utils";
 import type { StaffAttendanceRecord, AttendanceRequest, Staff } from "@/lib/types";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";

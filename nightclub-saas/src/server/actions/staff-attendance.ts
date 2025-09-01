@@ -12,6 +12,7 @@ import type {
   StaffShiftWish,
   StaffShiftPlan,
 } from "@/lib/types";
+import { calculateWorkMinutes } from "@/lib/attendance-utils";
 
 // スタッフ関連
 export async function getStaffList(): Promise<Staff[]> {
@@ -120,20 +121,6 @@ export async function getShiftPlan(month: string): Promise<StaffShiftPlan | unde
   return mockShiftStore.getPlan(month);
 }
 
-// 勤怠時間計算（分単位）
-export function calculateWorkMinutes(
-  checkIn: string | undefined,
-  checkOut: string | undefined
-): number {
-  if (!checkIn || !checkOut) return 0;
-  
-  const start = new Date(checkIn);
-  const end = new Date(checkOut);
-  const diffMs = end.getTime() - start.getTime();
-  
-  return Math.floor(diffMs / (1000 * 60)); // 分単位で返す
-}
-
 // 月次集計
 export async function getMonthlyStats(
   staffId: string,
@@ -148,12 +135,12 @@ export async function getMonthlyStats(
   let totalMinutes = 0;
   let workDays = 0;
   
-  records.forEach(record => {
+  for (const record of records) {
     if (record.checkInAt && record.checkOutAt) {
       totalMinutes += calculateWorkMinutes(record.checkInAt, record.checkOutAt);
       workDays++;
     }
-  });
+  }
   
   return {
     totalMinutes,

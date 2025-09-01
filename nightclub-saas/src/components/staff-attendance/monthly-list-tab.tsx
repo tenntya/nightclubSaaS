@@ -11,9 +11,9 @@ import { Calendar, ChevronLeft, ChevronRight, Clock, User } from "lucide-react";
 import { 
   getMonthlyAttendance, 
   getStaffList,
-  getMonthlyStats,
-  calculateWorkMinutes
+  getMonthlyStats
 } from "@/server/actions/staff-attendance";
+import { calculateWorkMinutes } from "@/lib/attendance-utils";
 import type { StaffAttendanceRecord, Staff } from "@/lib/types";
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import { ja } from "date-fns/locale";
