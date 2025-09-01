@@ -665,10 +665,9 @@ export function MultiReceiptForm({ menuItems, onComplete }: MultiReceiptFormProp
                   <Button 
                     onClick={() => saveSingleReceipt(index, true)}
                     className="w-full bg-green-600 hover:bg-green-700 text-white"
-                    size="lg"
                     disabled={receipt.items.length === 0}
                   >
-                    <CheckCircle className="mr-2 h-5 w-5" />
+                    <CheckCircle className="mr-2 h-4 w-4" />
                     この伝票を会計
                   </Button>
                 </div>
